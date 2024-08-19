@@ -9,7 +9,7 @@ Based on the target temperature and the current weather, it modifies the HVAC sy
 The CIMIS API offers extra meteorological data for enhanced climate control, and the system uses 
 temperature and humidity sensors to monitor the indoor environment. By calculating the energy 
 consumption and related costs of the HVAC system, the BMS combines energy consumption 
-monitoring. Users can use buttons to change the desired temperature, and an LCD screen shows realtime feedback.
+monitoring. Users can use buttons to change the desired temperature, and an LCD screen shows real-time feedback.
 
 Additionally, the system manages door/window sensor events. It recognizes changes in the open or 
 closed condition of doors and windows, which may have an impact on how well the HVAC system 
