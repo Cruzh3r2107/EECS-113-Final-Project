@@ -1,0 +1,319 @@
+import RPi.GPIO as GPIO
+import time
+import Adafruit_DHT
+import requests
+import json
+import threading
+from RPLCD.i2c import CharLCD
+GPIO.setwarnings(False)
+# GPIO Pin assignments
+PIR_PIN = 18  # PIR sensor pin
+LED_GREEN_PIN = 23  # Green LED pin
+LED_RED_PIN = 24  # Red LED pin
+LED_BLUE_PIN = 25  # Blue LED pin
+BUTTON_UP_PIN = 17  # Button for increasing temperature pin
+BUTTON_DOWN_PIN = 27  # Button for decreasing temperature pin
+BUTTON_SENSOR_PIN = 22  # Door/Window sensor pin
+
+# CIMIS API URL
+CIMIS_API_URL = 'http://et.water.ca.gov/api/data'
+
+# LCD configuration
+lcd = CharLCD('PCF8574', address=0x3f, port=1, backlight_enabled=True)
+
+# BMS variables
+temperature = 0.0
+humidity = 0.0
+desired_temperature = 29
+weather_index = 0.0
+hvac_status = "OFF"
+old_status ="OFF"
+door_status = "CLOSED"
+window_status = "CLOSED"
+energy_consumption = 0.0
+energy_cost = 0.0
+is_motion_detected = False
+is_button_up_pressed = False
+is_button_down_pressed = False
+is_button_sensor_pressed = False
+is_fire_alarm_active = False #initalising 
+max_temp_for_fire = 20
+
+# Initialize GPIO
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(PIR_PIN, GPIO.IN)
+GPIO.setup(LED_GREEN_PIN, GPIO.OUT)
+GPIO.setup(LED_RED_PIN, GPIO.OUT)
+GPIO.setup(LED_BLUE_PIN, GPIO.OUT)
+GPIO.setup(BUTTON_UP_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(BUTTON_DOWN_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(BUTTON_SENSOR_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+# Functions for controlling LEDs
+def turn_on_green_led():
+    GPIO.output(LED_GREEN_PIN, GPIO.HIGH)
+    
+def turn_off_green_led():
+    GPIO.output(LED_GREEN_PIN, GPIO.LOW)
+
+def turn_on_red_led():
+    GPIO.output(LED_RED_PIN, GPIO.HIGH)
+
+def turn_off_red_led():
+    GPIO.output(LED_RED_PIN, GPIO.LOW)
+
+def turn_on_blue_led():
+    GPIO.output(LED_BLUE_PIN, GPIO.HIGH)
+
+def turn_off_blue_led():
+    GPIO.output(LED_BLUE_PIN, GPIO.LOW)
+
+# Function for reading temperature and humidity from DHT sensor
+def read_temperature_humidity():
+    global temperature, humidity
+    humidity, temperature = Adafruit_DHT.read_retry(Adafruit_DHT.DHT11, 4)
+    if humidity is not None and temperature is not None:
+        temperature = round(temperature, 1)
+        humidity = round(humidity, 1)
+
+# Function for retrieving humidity from CIMIS system
+def get_cimis_humidity():
+    params = {
+        'appKey': '17ab4aac-00b7-4ffc-a2d8-06086ca5780e',
+        'targets': '71',
+        'startDate':'2023-05-01',
+        'endDate': '2023-05-29',
+        'dataItems': 'humidity'
+    }
+    response = requests.get(CIMIS_API_URL, params=params)
+    if response.status_code == 200:
+        data = json.loads(response.text)
+        if 'Data' in data and len(data['Data']) > 0:
+            humidity = round(data['Data'][0]['humidity'], 1)
+            return humidity
+    return None
+
+# Function for calculating weather index
+def calculate_weather_index():
+    global weather_index
+    weather_index = temperature + 0.05 * humidity
+    weather_index = round(weather_index, 1)
+
+# Function for updating HVAC status
+def update_hvac_status():
+    global hvac_status, old_status
+    old_status = hvac_status
+    #print(old_status)
+    if weather_index > desired_temperature + 3:
+        hvac_status = "AC"
+        turn_on_blue_led()
+        turn_off_red_led()
+    elif weather_index < desired_temperature - 3:
+        hvac_status = "HEAT"
+        turn_off_blue_led()
+        turn_on_red_led()
+    else:
+        hvac_status = "OFF"
+        turn_off_blue_led()
+        turn_off_red_led()
+
+    
+    
+    
+# Function for handling button events
+def button_event_handler(channel):
+    global is_button_up_pressed, is_button_down_pressed, is_button_sensor_pressed
+    if channel == BUTTON_UP_PIN:
+        is_button_up_pressed = True
+    elif channel == BUTTON_DOWN_PIN:
+        is_button_down_pressed = True
+    elif channel == BUTTON_SENSOR_PIN:
+        is_button_sensor_pressed = True
+
+# Function for handling door/window sensor events
+def door_window_sensor_event_handler(channel):
+    global door_status, window_status, weather_index, is_fire_alarm_active, hvac_status
+    if GPIO.input(BUTTON_SENSOR_PIN) == GPIO.HIGH:
+        if door_status == 'OPEN' and window_status == 'OPEN':
+            door_status = "CLOSED"
+            window_status = "CLOSED"
+        else:
+            door_status = "OPEN"
+            window_status = "OPEN"
+            hvac_status = "OFF"
+            display_information()
+            turn_off_blue_led()
+            turn_off_red_led()
+# Function for updating energy consumption and cost
+def update_energy_consumption():
+    global energy_consumption, energy_cost
+    if hvac_status == "AC":
+        energy_consumption += 0.001 * 18000  # Assuming 1 second interval
+    elif hvac_status == "HEAT":
+        energy_consumption += 0.001 * 36000  # Assuming 1 second interval
+    energy_cost = round(energy_consumption * 0.5, 2)
+
+# Function for displaying information on LCD
+def display_information():
+    lcd.clear()
+    lcd.cursor_pos = (0, 0)
+    lcd.write_string(f"T:{temperature}C Hum:{humidity}%")
+    print(f"T:{temperature}C Hum:{humidity}%")
+
+    lcd.cursor_pos = (1, 0)
+    lcd.write_string(f"Weather:{weather_index}C")
+    print(f"Weather:{weather_index}C")
+    time.sleep(3)
+    lcd.clear()
+
+    lcd.cursor_pos = (0, 0)
+    lcd.write_string(f"DTP:{desired_temperature}C|HVAC:{hvac_status}")
+    print(f"Desired:{desired_temperature}C HVAC:{hvac_status}")
+    
+    lcd.cursor_pos = (1, 0)
+    lcd.write_string(f"DW:{door_status}")#since door and window status is same we print only one of them
+    print(f"DoorWin:{door_status}")
+    time.sleep(3)
+    lcd.clear()
+
+# Function for displaying HVAC state on LCD
+def display_hvac_state():
+    lcd.clear()
+    lcd.write_string(f"{hvac_status} is on")
+    time.sleep(3)
+    display_information()
+
+# Function for displaying energy bill report on LCD
+def display_energy_bill_report():
+    lcd.clear()
+    lcd.cursor_pos = (0, 0)
+    lcd.write_string(f"Energy: {energy_consumption} KWh")
+    lcd.cursor_pos = (1, 0)
+    lcd.write_string(f"Cost: ${energy_cost}")
+    time.sleep(3)
+    display_information()
+
+# Function for checking fire alarm condition
+def check_fire_alarm():
+    global is_fire_alarm_active, weather_index, door_status, window_status, max_temp_for_fire,hvac_status
+    if is_fire_alarm_active:
+        max_temp_for_fire =35
+        lcd.clear()
+        lcd.cursor_pos = (0, 0)
+        lcd.write_string("FIRE ALARM!")
+        print("FIRE ALARM!")
+        lcd.cursor_pos = (1, 0)
+        lcd.write_string("EVACUATE!")
+        print('EVACUATE')
+        time.sleep(3)
+        lcd.clear()
+        door_status = "OPEN"
+        window_status = "OPEN"
+        lcd.cursor_pos = (0, 0)
+        lcd.write_string(f"DoorWin:{door_status},{window_status}")
+        print(f"DoorWin:{door_status},{window_status}")
+        hvac_status = "OFF"
+        lcd.cursor_pos = (1, 0)    
+        lcd.write_string(f"HVAC:{hvac_status}")
+        for _ in range(10):  # Blink for 10 seconds
+            turn_on_green_led()
+            turn_on_red_led()
+            turn_on_blue_led()
+            time.sleep(1)
+            turn_off_green_led()
+            turn_off_red_led()
+            turn_off_blue_led()
+            time.sleep(1)
+        is_fire_alarm_active = False
+        turn_off_green_led()
+        turn_off_red_led()
+        turn_off_blue_led()  
+    else:
+        is_fire_alarm_active = False
+        turn_off_green_led()
+        display_information()
+
+# Function for controlling the BMS
+def bms_control():
+    global desired_temperature, is_motion_detected, is_fire_alarm_active, energy_consumption, energy_cost, max_temp_for_fire
+    global is_button_up_pressed, is_button_down_pressed, is_button_sensor_pressed  # Add global declaration
+    while True:
+        if GPIO.input(PIR_PIN) == GPIO.HIGH:
+            is_motion_detected = True
+            turn_on_green_led()
+            lcd.clear()
+            lcd.write_string("LED:ON")
+            time.sleep(10)
+        else:
+            is_motion_detected = False
+            turn_off_green_led()
+            lcd.clear()
+            lcd.write_string("LED:OFF")
+            time.sleep(5)
+            
+
+        if is_button_up_pressed:
+            if desired_temperature < 35:
+                desired_temperature += 1
+                print(f" Desired changed to:{desired_temperature}C")
+                is_button_up_pressed = False
+
+        if is_button_down_pressed:
+            if desired_temperature > 18:#65
+                desired_temperature -= 1
+                print(f" Desired changed to:{desired_temperature}C")
+                is_button_down_pressed = False
+
+        if is_button_sensor_pressed:
+            if door_status == "OPEN":
+                door_status = "CLOSED"
+                window_status = "CLOSED"
+            else:
+                door_status = "OPEN"
+                window_status = "OPEN"
+                is_button_sensor_pressed = False
+
+        if is_motion_detected or is_button_up_pressed or is_button_down_pressed or is_button_sensor_pressed:
+            read_temperature_humidity()
+            humidity = get_cimis_humidity()
+            calculate_weather_index()
+            update_hvac_status()
+            update_energy_consumption()
+            display_information()
+            
+        if hvac_status != old_status:
+            update_energy_consumption()
+            display_energy_bill_report()
+        #if hvac_status != "OFF":
+            #if is_motion_detected or is_button_up_pressed or is_button_down_pressed or is_button_sensor_pressed:
+                #display_hvac_state()
+                #if is_button_up_pressed or is_button_down_pressed:
+                    #display_energy_bill_report()
+        if weather_index > max_temp_for_fire:
+            is_fire_alarm_active = True
+            check_fire_alarm()
+            if not is_fire_alarm_active:
+                display_information()
+        #if is_fire_alarm_active:   #is_fire_alarm_active = False
+            
+
+# Add event handlers for button and door/window sensor
+GPIO.add_event_detect(BUTTON_UP_PIN, GPIO.FALLING, callback=button_event_handler, bouncetime=200)
+GPIO.add_event_detect(BUTTON_DOWN_PIN, GPIO.FALLING, callback=button_event_handler, bouncetime=200)
+GPIO.add_event_detect(BUTTON_SENSOR_PIN, GPIO.BOTH, callback=door_window_sensor_event_handler, bouncetime=200)
+
+# Start the BMS control thread
+bms_thread = threading.Thread(target=bms_control)
+bms_thread.daemon = True
+bms_thread.start()
+
+try:
+    while True:
+        pass
+except KeyboardInterrupt:
+    GPIO.cleanup()
+
+
+
+
+
