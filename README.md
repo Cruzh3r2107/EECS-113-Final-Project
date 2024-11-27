@@ -1,24 +1,91 @@
-# EECS-113-Final-Project
-The project is a Building Management System implementation using a Raspberry Pi 3B+ and sensors  like PIR Infrared Motion Detector with LED Indicator, the Infrared Motion Sensor can detect the heat  signatures emitted by living humans within the infrared spectrum, the DHT -11, to read Temperature  and Humidity data.
- It also utilizes the CIMIS API to retrieve weather data, specifically humidity, for 
-more accurate monitoring. The goal of the project is to monitor and control the environment within a 
-building to optimize energy efficiency, comfort, and safety.
+# EECS-113 Final Project: Building Management System
 
-Control of the HVAC (Heating, Ventilation, and Air Conditioning) system is the focus of the BMS. 
-Based on the target temperature and the current weather, it modifies the HVAC system's functioning. 
-The CIMIS API offers extra meteorological data for enhanced climate control, and the system uses 
-temperature and humidity sensors to monitor the indoor environment. By calculating the energy 
-consumption and related costs of the HVAC system, the BMS combines energy consumption 
-monitoring. Users can use buttons to change the desired temperature, and an LCD screen shows real-time feedback.
+This project demonstrates a **Building Management System (BMS)** implemented using a Raspberry Pi 3B+ and various sensors to enhance energy efficiency, comfort, and safety in indoor environments.
 
-Additionally, the system manages door/window sensor events. It recognizes changes in the open or 
-closed condition of doors and windows, which may have an impact on how well the HVAC system 
-functions. To reduce energy waste, the BMS cuts off the HVAC system whenever the sensors detect an 
-open door or window. A fire alarm feature is also included in the BMS. The BMS activates a fire alarm 
-if the weather indicates a potential fire threat (for example, a high weather index). It activates the 
-door/window status to "OPEN" and issues warnings visually and audibly via the LCD screen and LEDs.
+## Overview
 
-The project prioritizes user comfort and safety while also maximizing energy economy by modifying 
-the HVAC system in response to current conditions. The BMS contributes to the maintenance of a 
-comfortable and secure indoor environment while minimizing energy loss by integrating a variety of 
-sensors and clever control algorithms.
+The BMS integrates hardware, software, and external APIs to monitor and control environmental conditions within a building. Key components include:
+
+- **PIR Infrared Motion Detector with LED Indicator**: Detects heat signatures emitted by humans.
+- **DHT-11 Sensor**: Measures temperature and humidity.
+- **CIMIS API Integration**: Retrieves external weather data (e.g., humidity) for more accurate environmental monitoring.
+- **HVAC Control**: Optimizes heating, ventilation, and air conditioning based on target temperature and current conditions.
+- **Door/Window Sensors**: Monitors openings to prevent energy loss.
+- **Fire Alarm System**: Activates alarms and safety protocols when potential fire risks are detected.
+
+---
+
+## Features
+
+### 1. **Environmental Monitoring**
+   - Sensors continuously collect indoor temperature and humidity data.
+   - External weather data is fetched using the **CIMIS API** for enhanced accuracy.
+
+### 2. **HVAC Control**
+   - Adjusts HVAC system operations based on:
+     - Target indoor temperature.
+     - Current indoor/outdoor climate conditions.
+   - Displays real-time status on an **LCD screen**.
+   - **Energy Consumption Monitoring**: Calculates and displays energy usage and associated costs.
+
+### 3. **Door/Window Management**
+   - Automatically turns off the HVAC system when an open door or window is detected to minimize energy waste.
+
+### 4. **Fire Alarm System**
+   - Activates the alarm and opens doors/windows during fire emergencies.
+   - Provides visual and audible alerts through:
+     - LEDs
+     - LCD screen notifications
+
+### 5. **User Interaction**
+   - Users can adjust target temperatures via physical buttons.
+   - The system provides instant feedback on the LCD screen.
+
+---
+
+## Benefits
+
+- **Energy Efficiency**: Reduces energy consumption by optimizing HVAC usage and minimizing waste.
+- **User Comfort**: Maintains a comfortable indoor climate with precise control.
+- **Safety**: Includes fire alarm and window/door monitoring for enhanced security.
+- **Cost Monitoring**: Provides insights into energy costs, helping users save on bills.
+
+---
+
+## Hardware and Software
+
+- **Hardware Components**:
+  - Raspberry Pi 3B+
+  - PIR Infrared Motion Sensor with LED Indicator
+  - DHT-11 Temperature and Humidity Sensor
+  - Door/Window Sensors
+  - LCD Screen
+  - Buttons and LEDs
+
+- **Software/Tools**:
+  - Python-based control algorithms
+  - CIMIS API for weather data
+  - Integration of sensor data for intelligent decision-making
+
+---
+
+## Project Video
+
+[Watch the project demo here](https://youtu.be/SmSUwGY7VRM)
+
+---
+
+## How It Works
+
+1. **Environmental Data**: Indoor data is collected via sensors, and outdoor data is fetched using the CIMIS API.
+2. **HVAC Optimization**: Adjusts HVAC system settings based on real-time environmental data.
+3. **Energy Monitoring**: Tracks energy consumption and provides cost calculations.
+4. **Safety Features**:
+   - Fire alarms trigger emergency protocols.
+   - HVAC shuts down during door/window openings to avoid energy loss.
+
+---
+
+## Conclusion
+
+This project demonstrates the potential of integrating sensors, APIs, and control algorithms to create an intelligent Building Management System. By optimizing energy efficiency, ensuring safety, and enhancing comfort, the BMS serves as a scalable solution for modern building automation.
